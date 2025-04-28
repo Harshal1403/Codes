@@ -1,0 +1,784 @@
+1. Design and implement Parallel Breadth First Search and Depth First Search based on existing
+algorithms using OpenMP. Use a Tree or an undirected graph for BFS and DFS .
+
+#include <iostream>
+#include <vector>
+#include <stack>
+#include <queue>
+#include <omp.h>
+using namespace std;
+
+const int MAX=100;
+vector<int> graph[MAX] ;
+bool visited[MAX]={false};
+
+void bfs(int s){
+	queue<int> qu;
+	qu.push(s);
+
+	while(!qu.empty()){
+		int curr = qu.front();
+		qu.pop();
+		if (!visited[curr]) {
+			visited[curr]=true;
+			cout << "visited node : "<<curr<<endl;
+			#pragma omp parallel for
+			for ( int i = 0;  i< graph[curr].size(); i++) {
+				if (!visited[graph[curr][i]]) {
+					qu.push(graph[curr][i]);
+				}
+			}
+		}
+	}
+}
+
+void dfs( int s){
+	stack<int> st;
+	st.push(s);
+
+	while(!st.empty()){
+		int curr = st.top();
+		st.pop();
+		if (!visited[curr]) {
+			visited[curr]=true;
+			cout << "visited node : "<<curr<<endl;
+			#pragma omp parallel for
+			for ( int i = 0;  i < graph[curr].size(); i++) {
+				if (!visited[graph[curr][i]]) {
+					st.push(graph[curr][i]);
+				}
+			}
+		}
+	}
+}
+
+
+int main(){
+
+	int n,e,s;
+	cout << "enter no : ";
+	cin>>n;
+	cout << "enter e : ";
+	cin>>e;
+	cout << "enter s : ";
+	cin>>s;
+
+	for ( int i = 0;  i< e; i++) {
+		int v,u;
+		cout <<"Enter v :";
+		cin >>v;
+
+		cout <<"Enter u :";
+		cin >>u;
+
+		graph[u].push_back(v);
+		graph[v].push_back(u);
+	}
+
+	dfs(s);
+
+	for(int i=0;i<sizeof(visited);i++){
+		visited[i]=false;
+	}
+
+	bfs(s);
+
+}
+
+
+
+2.Write a program to implement Parallel Bubble Sort and Merge sort using OpenMP. Use
+existing algorithms and measure the performance of sequential and parallel algorithms.
+
+
+
+#include <vector>
+#include <omp.h>
+#include <iostream>
+
+using namespace std;
+
+void bubble_sort_s(int *a,int n){
+	for (int i= 0; i< n-1; i++) {
+		for (int j = 0; j < n-i-1; j++) {
+			if (a[j]>a[j+1]) {
+				int temp=a[j];
+				a[j]=a[j+1];
+				a[j+1]=temp;
+			}
+		}
+	}
+}
+
+void bubble_sort_p(int *a,int n){
+	for ( int i = 0;  i< n; i++) {
+		int first =i%2;
+		#pragma omp parallel for shared(a,first)
+		for (int j = first; j< n-1; j+=2) {
+			if (a[j]>a[j+1]) {
+				int temp=a[j];
+				a[j]=a[j+1];
+				a[j+1]=temp;
+			}
+		}
+	}
+}
+
+int main(){
+
+	int n;
+	cout <<"enter size of n : ";
+	cin>>n;
+	int *a = new int[n];
+
+	for ( int i = 0;  i< n; i++) {
+		cout <<"enter element no "<<i+1 <<" : ";
+		cin>>a[i];
+	}
+	double bsp_start = omp_get_wtime();
+	bubble_sort_p(a,n);
+	double bsp_end = omp_get_wtime();
+
+	cout <<"array with time "<<bsp_end-bsp_start<<" : ";
+	for ( int i = 0;  i< n; i++) {
+		cout <<" "<<a[i];
+
+	}
+
+
+	double bss_start = omp_get_wtime();
+	bubble_sort_s(a,n);
+	double bss_end= omp_get_wtime();
+	cout <<"array with time "<<bss_end-bss_start<<" : ";
+	for ( int i = 0;  i< n; i++) {
+		cout <<" "<<a[i];
+	}
+}
+
+
+Merge Sort
+#include <iostream>
+#include <omp.h>
+
+void merge(int* arr, int l, int m, int r) {
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 = r - m;
+    int* L = new int[n1];
+    int* R = new int[n2];
+
+    for (i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (j = 0; j < n2; j++)
+        R[j] = arr[m + 1 + j];
+
+    i = 0;
+    j = 0;
+    k = l;
+
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) {
+            arr[k] = L[i];
+            i++;
+        } else {
+            arr[k] = R[j];
+            j++;
+        }
+        k++;
+    }
+
+    while (i < n1) {
+        arr[k] = L[i];
+        i++;
+        k++;
+    }
+
+    while (j < n2) {
+        arr[k] = R[j];
+        j++;
+        k++;
+    }
+
+    delete[] L;
+    delete[] R;
+}
+
+void mergeSort(int* arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        #pragma omp parallel sections
+        {
+            #pragma omp section
+            mergeSort(arr, l, m);
+
+            #pragma omp section
+            mergeSort(arr, m + 1, r);
+        }
+
+        merge(arr, l, m, r);
+    }
+}
+
+int main() {
+    int arr[] = {12, 11, 13, 5, 6, 7};
+    int n = sizeof(arr) / sizeof(arr[0]);
+
+    std::cout << "Given array is: ";
+    for (int i = 0; i < n; i++)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
+
+    double start = omp_get_wtime();
+    mergeSort(arr, 0, n - 1);
+    double stop = omp_get_wtime();
+
+    std::cout << "Sorted array is: ";
+    for (int i = 0; i < n; i++)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
+
+    std::cout << "Measured performance: " << stop - start << " seconds" << std::endl;
+}
+
+Merge Sort
+
+#include <iostream>
+#include <omp.h>
+
+void merge(int* arr, int l, int m, int r) {
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 = r - m;
+    int* L = new int[n1];
+    int* R = new int[n2];
+
+    for (i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (j = 0; j < n2; j++)
+        R[j] = arr[m + 1 + j];
+
+    i = 0;
+    j = 0;
+    k = l;
+
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) {
+            arr[k] = L[i];
+            i++;
+        } else {
+            arr[k] = R[j];
+            j++;
+        }
+        k++;
+    }
+
+    while (i < n1) {
+        arr[k] = L[i];
+        i++;
+        k++;
+    }
+
+    while (j < n2) {
+        arr[k] = R[j];
+        j++;
+        k++;
+    }
+
+    delete[] L;
+    delete[] R;
+}
+
+void mergeSort(int* arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        #pragma omp parallel sections
+        {
+            #pragma omp section
+            mergeSort(arr, l, m);
+
+            #pragma omp section
+            mergeSort(arr, m + 1, r);
+        }
+
+        merge(arr, l, m, r);
+    }
+}
+
+int main() {
+    int arr[] = {12, 11, 13, 5, 6, 7};
+    int n = sizeof(arr) / sizeof(arr[0]);
+
+    std::cout << "Given array is: ";
+    for (int i = 0; i < n; i++)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
+
+    double start = omp_get_wtime();
+    mergeSort(arr, 0, n - 1);
+    double stop = omp_get_wtime();
+
+    std::cout << "Sorted array is: ";
+    for (int i = 0; i < n; i++)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
+
+    std::cout << "Measured performance: " << stop - start << " seconds" << std::endl;
+}
+
+
+
+
+3. Implement Min, Max, Sum and Average operations using Parallel Reduction.
+
+
+
+#include <iostream>
+#include <omp.h>
+#include <climits>
+
+using namespace std;
+
+int min(int *arr,int n){
+	int min_value = INT_MAX;
+	#pragma omp parallel for reduction(min: min_value)
+	for ( int i = 0;  i< n; i++) {
+		if (arr[i]<min_value) {
+			min_value=arr[i];
+		}
+	}
+	return min_value;
+
+}
+
+int max(int *arr,int n){
+	int max_value=INT_MIN;
+	#pragma omp parallel for reduction (max:max_value)
+	for ( int i= 0;  i< n; i++) {
+		if(arr[i]>max_value){
+			max_value=arr[i];
+		}
+	}
+	return max_value;
+}
+int sum(int *arr,int n){
+	int sum =0;
+	#pragma omp parallel for reduction (+:sum)
+	for (int i = 0; i < n; ++i) {
+		sum+=arr[i];
+	}
+	return sum;
+}
+
+int avg(int *arr,int n){
+	int avg;
+	int sum=0;
+	#pragma omp parallel for reduction(+:sum)
+	for (int i = 0; i < n; ++i) {
+		sum+=arr[i];
+	}
+	avg=sum/n;
+	return avg;
+}
+
+int main(){
+	int n;
+	cout << "Enter size of array : ";
+	cin >> n;
+
+	int *arr = new int [n];
+
+	for ( int i= 0;  i< n; i++) {
+		cout <<"Enter element no "<<i+1;
+		cin>>arr[i];
+	}
+
+	cout << "minimum value : "<<min(arr,n);
+	cout << "maximum value : "<<max(arr,n);
+	cout << "sum value : "<<sum(arr,n);
+	cout << "avg value : "<<avg(arr,n);
+}
+
+
+4.Write a CUDA Program for :
+1. Addition of two large vectors
+2. Matrix Multiplication using CUDA C
+
+# Make sure you install CuPy first:
+# pip install cupy
+
+import cupy as cp
+
+def initialize_vector(size):
+    return cp.random.randint(0, 10, size)
+
+def initialize_matrix(size):
+    return cp.random.randint(0, 10, (size, size))
+
+def add_vectors(A, B):
+    return A + B
+
+def multiply_matrices(A, B):
+    return A @ B  # or cp.matmul(A, B)
+
+def print_vector(vector):
+    print(' '.join(map(str, cp.asnumpy(vector))))
+
+def print_matrix(matrix):
+    for row in cp.asnumpy(matrix):
+        print(' '.join(map(str, row)))
+    print()
+
+def main():
+    N = 4
+
+    # Vector addition
+    A = initialize_vector(N)
+    B = initialize_vector(N)
+
+    print("Vector A:")
+    print_vector(A)
+    
+    print("Vector B:")
+    print_vector(B)
+
+    C = add_vectors(A, B)
+
+    print("Addition:")
+    print_vector(C)
+
+    # Matrix multiplication
+    D = initialize_matrix(N)
+    E = initialize_matrix(N)
+
+    print("\nMatrix D:")
+    print_matrix(D)
+
+    print("Matrix E:")
+    print_matrix(E)
+
+    F = multiply_matrices(D, E)
+
+    print("Multiplication:")
+    print_matrix(F)
+
+if __name__ == "__main__":   
+    main()
+
+
+
+Linear regression by using Deep Neural network: Implement Boston housing price prediction
+problem by Linear regression using Deep Neural network. Use Boston House price prediction
+dataset.
+
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn import metrics
+from sklearn.metrics import r2_score, mean_squared_error
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+from tqdm.notebook import tqdm
+import warnings
+warnings.filterwarnings("ignore")
+from keras.models import Sequential
+from keras.layers import Dense, Dropout,Activation
+from keras import models
+from keras import layers
+
+
+boston = tf.keras.datasets.boston_housing
+dir(boston)
+
+boston_data = boston.load_data()
+
+# After loading data
+(x_train, y_train), (x_test, y_test) = boston.load_data()
+
+# Define feature names
+column_names = [
+    'CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM',
+    'AGE', 'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT'
+]
+
+# Create dataframe
+df = pd.DataFrame(x_train, columns=column_names)
+
+# Add the target PRICE
+df['PRICE'] = y_train
+
+
+print(df.shape)
+print(df.dtypes)
+print(df.isnull().sum())
+print(df.describe())
+
+sns.displot(df.PRICE)
+
+correlation = df.corr()
+correlation.loc['PRICE']
+
+fig,axes = plt.subplots(figsize=(15,12))
+sns.heatmap(correlation,square = True,annot = True)
+
+
+
+# Assuming 'data' already has your features + PRICE column
+X = df.iloc[:, :-1]   # all columns except last
+y = df['PRICE']       # target column
+
+# Splitting the dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Normalizing (Standardizing) the data
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+
+model = Sequential()
+model.add(Dense(128,activation = 'relu',input_dim =13))
+model.add(Dense(64,activation = 'relu'))
+model.add(Dense(32,activation = 'relu'))
+model.add(Dense(16,activation = 'relu'))
+model.add(Dense(1))
+model.compile(optimizer = 'adam',loss = 'mean_squared_error')
+model.summary()
+
+
+model.fit(X_train, y_train, epochs = 100)
+
+
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+rmse = (np.sqrt(mean_squared_error(y_test, y_pred)))
+print("R2 Score = ", r2)
+print("RMSE Score = ", rmse)
+
+
+
+                                   OR
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.datasets import load_boston
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+import keras
+from keras.layers import Dense, Activation,Dropout
+from keras.models import Sequential
+import warnings
+warnings.filterwarnings("ignore") 
+
+
+boston = load_boston()
+data = pd.DataFrame(boston.data)
+data.columns = boston.feature_names
+data['PRICE'] = boston.target 
+data.head()
+
+print(data.shape)
+print(data.dtypes)
+print(data.isnull().sum())
+print(data.describe())
+
+sns.displot(data.PRICE)
+
+correlation = data.corr()
+correlation.loc['PRICE']
+
+fig,axes = plt.subplots(figsize=(15,12))
+sns.heatmap(correlation,square = True,annot = True)
+
+
+
+
+X = data.iloc[:,:-1]
+y= data.PRICE
+X_train, X_test, y_train, y_test = train_test_split(X,y, test_size = 0.2, random_state = 4)
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+
+
+
+model = Sequential()
+model.add(Dense(128,activation  = 'relu',input_dim =13))
+model.add(Dense(64,activation  = 'relu'))
+model.add(Dense(32,activation  = 'relu'))
+model.add(Dense(16,activation  = 'relu'))
+model.add(Dense(1))
+model.compile(optimizer = 'adam',loss = 'mean_squared_error')
+model.summary()
+
+
+model.fit(X_train, y_train, epochs = 100)
+
+
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+rmse = (np.sqrt(mean_squared_error(y_test, y_pred)))
+print("R2 Score = ", r2)
+print("RMSE Score = ", rmse)
+
+
+
+2. Binary classification using Deep Neural Networks Example: Classify movie reviews into
+positive" reviews and "negative" reviews, just based on the text content of the reviews.
+Use IMDB dataset
+
+
+# Import libraries
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense, Embedding, GlobalAveragePooling1D
+from tensorflow.keras.datasets import imdb
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.metrics import accuracy_score, ConfusionMatrixDisplay, classification_report
+ 
+
+# Loading Data
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=10000)
+
+
+print("\nFirst Review (as integers):")
+print(x_train[0])
+print("\nFirst Review Label:", y_train[0])
+
+# Data Preparation
+maxlen = 200
+x_train = pad_sequences(x_train, maxlen=maxlen)
+x_test = pad_sequences(x_test, maxlen=maxlen)
+
+
+
+model = Sequential()
+model.add(Embedding(input_dim=10000, output_dim=32, input_length=maxlen))  # Embedding layer
+model.add(GlobalAveragePooling1D())                                        # Pooling layer
+model.add(Dense(64, activation='relu'))                                     # Hidden layer 1
+model.add(Dense(32, activation='relu'))                                     # Hidden layer 2
+model.add(Dense(1, activation='sigmoid'))                                   # Output layer
+
+
+
+# Compile model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+
+# Train model
+history = model.fit(x_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
+
+# Predict
+y_pred = (model.predict(x_test) > 0.5).astype("int32").flatten()
+
+
+result = pd.DataFrame()
+result['Actual'], result['Predicted'] = y_test, y_pred
+result.sample(5)
+
+
+# Evaluate
+acc = accuracy_score(y_test, y_pred)
+print("\nTest Accuracy: ", acc)
+
+
+ConfusionMatrixDisplay.from_predictions(y_test,y_pred)
+
+
+3. Convolutional neural network (CNN) (Any One from the following)
+Use any dataset of plant disease and design a plant disease detection system using CNN.
+
+
+
+import numpy as np
+import pandas as pd 
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers
+
+## Defining batch specfications
+batch_size = 100
+img_height = 250
+img_width = 250
+
+
+## loading training set
+training_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    'New Plant Diseases Dataset(Augmented)/train',
+    seed=42,
+    image_size= (img_height, img_width),
+    batch_size=batch_size)
+
+
+## loading validation dataset
+validation_ds =  tf.keras.preprocessing.image_dataset_from_directory(
+    'New Plant Diseases Dataset(Augmented)/valid',
+    seed=42,
+    image_size= (img_height, img_width),
+    batch_size=batch_size)
+
+
+class_names = training_ds.class_names
+
+## Defining Cnn
+MyCnn = tf.keras.models.Sequential([
+  layers.BatchNormalization(),
+  layers.Conv2D(32, 3, activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Conv2D(64, 3, activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Conv2D(128, 3, activation='relu'),
+  layers.MaxPooling2D(),
+  layers.Flatten(),
+  layers.Dense(256, activation='relu'),
+  layers.Dense(len(class_names), activation= 'softmax')
+])
+
+
+MyCnn.compile(optimizer='adam',loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+## lets train our CNN
+retVal = MyCnn.fit(training_ds,validation_data= validation_ds,epochs = 2)
+
+plt.plot(retVal.history['loss'], label = 'training loss')
+plt.plot(retVal.history['accuracy'], label = 'training accuracy')
+plt.legend()
+
+
+
+AccuracyVector = []
+plt.figure(figsize=(30, 30))
+for images, labels in validation_ds.take(1):
+    predictions = MyCnn.predict(images)
+    predlabel = []
+    prdlbl = []
+    
+    for mem in predictions:
+        predlabel.append(class_names[np.argmax(mem)])
+        prdlbl.append(np.argmax(mem))
+    
+    AccuracyVector = np.array(prdlbl) == labels
+    for i in range(40):
+        ax = plt.subplot(10, 4, i + 1)
+        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.title('Pred: '+ predlabel[i]+' actl:'+class_names[labels[i]] )
+        plt.axis('off')
+        plt.grid(True)
+
+plt.plot(retVal.history['val_loss'], label = 'validation loss')
+plt.plot(retVal.history['val_accuracy'], label = 'validation accuracy')
+plt.legend()
